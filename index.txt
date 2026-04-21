@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manolo Bakes — Dashboard Automático</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Se mantienen todos tus estilos CSS originales del archivo dashboard_manolo.html */
+  :root {
+    --green-dark: #1a2e1e;
+    --green-mb: #2d4a32;
+    --green-mid: #3d6b45;
+    --green-light: #5a8f64;
+    --cream: #f5f0e8;
+    --cream-dark: #e8e0d0;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --white: #ffffff;
+    --text-light: rgba(245,240,232,0.7);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--green-dark); color: var(--cream); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 1000px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 3rem; border-bottom: 1px solid rgba(201,168,76,0.2); padding-bottom: 2rem; }
+  h1 { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 900; letter-spacing: -1px; color: var(--gold); margin-bottom: 0.5rem; }
+  .subtitle { font-family: 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 4px; font-size: 0.8rem; color: var(--text-light); }
+  
+  /* Estilos para el panel de carga automático */
+  #status-msg { text-align: center; margin-bottom: 1rem; font-style: italic; color: var(--gold-light); }
+  #manual-upload-trigger { 
+    display: block; margin: 0 auto 2rem auto; background: transparent; border: 1px solid var(--green-mid); 
+    color: var(--text-light); padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.7rem;
+  }
+  #uploadPanel { display: none; background: rgba(255,255,255,0.05); padding: 2rem; border-radius: 15px; text-align: center; margin-bottom: 2rem; border: 1px dashed var(--gold); }
+  
+  /* Se mantienen tus estilos de tablas y tarjetas... */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+  .stat-card { background: var(--green-mb); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+  .table-container { background: var(--green-mb); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: rgba(0,0,0,0.2); padding: 1.2rem 1rem; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); }
+  td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .bar-fill { height: 6px; background: var(--gold); border-radius: 3px; }
+  .bar-bg { width: 100%; background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>MANOLO BAKES</h1>
+    <div class="subtitle">La Caja Challenge — Ranking en Tiempo Real</div>
+  </header>
+
+  <div id="status-msg">Cargando datos en tiempo real...</div>
+  
+  <button id="manual-upload-trigger" onclick="document.getElementById('uploadPanel').style.display='block'">Subir archivo manualmente</button>
+
+  <div id="uploadPanel">
+    <p style="margin-bottom:1rem">Selecciona el archivo Excel si la carga automática falla:</p>
+    <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
+  </div>
+
+  <div class="stats-grid" id="statsGrid" style="display:none">
+    <div class="stat-card">
+      <div class="label">Total Ventas</div>
+      <div class="value" id="totalVentas">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Tickets</div>
+      <div class="value" id="totalTickets">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Media Indicador</div>
+      <div class="value" id="mediaIndicador">0%</div>
+    </div>
+  </div>
+
+  <div class="table-container" id="mainContent" style="display:none">
+    <table id="rankingTable">
+      <thead>
+        <tr>
+          <th>Puesto</th>
+          <th>Tienda</th>
+          <th>Ventas</th>
+          <th>Tickets</th>
+          <th>Indicador</th>
+          <th style="width: 30%">Progreso</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  // CONFIGURACIÓN: PEGA AQUÍ TU URL DE GOOGLE SHEETS (PUBLICA COMO CSV)
+  const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSGjOja6tEOQ7pMgNbnGiPVpyFzs-fwwMyw3Yw6HMTPTZWEAAktypqNCp8VSWefog/pub?output=csv';
+
+  let currentRankings = [];
+
+  // Al cargar la página, intenta traer los datos automáticamente
+  window.addEventListener('DOMContentLoaded', () => {
+    if (SHEET_CSV_URL && SHEET_CSV_URL !== 'TU_URL_DE_GOOGLE_SHEETS_AQUI') {
+      fetchData();
+    } else {
+      document.getElementById('status-msg').innerText = "Configura la URL de Google Sheets en el código.";
+      document.getElementById('uploadPanel').style.display = 'block';
+    }
+  });
+
+  // Escuchador para subida manual por si acaso
+  document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target.result;
+      processWorkbook(XLSX.read(data, { type: 'binary' }));
+    };
+    reader.readAsBinaryString(file);
+  });
+
+  async function fetchData() {
+    try {
+      const response = await fetch(SHEET_CSV_URL);
+      const csvText = await response.text();
+      const workbook = XLSX.read(csvText, { type: 'string' });
+      processWorkbook(workbook);
+      document.getElementById('status-msg').innerText = "Datos actualizados automáticamente";
+    } catch (e) {
+      console.error(e);
+      document.getElementById('status-msg').innerText = "Error en carga automática. Usa la subida manual.";
+      document.getElementById('uploadPanel').style.display = 'block';
+    }
+  }
+
+  function processWorkbook(workbook) {
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rawData = XLSX.utils.sheet_to_json(sheet);
+    
+    // Aquí usamos tu lógica original de procesamiento
+    currentRankings = rawData.map(row => ({
+      name: row.Tienda || row.Nombre || "Tienda",
+      ventas: parseFloat(row.Ventas || 0),
+      tickets: parseInt(row.Tickets || 0),
+      indicador: parseFloat(row.Indicador || 0)
+    })).sort((a, b) => b.indicador - a.indicador);
+
+    renderDashboard();
+  }
+
+  function renderDashboard() {
+    document.getElementById('statsGrid').style.display = 'grid';
+    document.getElementById('mainContent').style.display = 'block';
+    
+    const tbody = document.getElementById('tableBody');
+    let totalV = 0, totalT = 0, sumaInd = 0;
+
+    tbody.innerHTML = currentRankings.map((tienda, index) => {
+      totalV += tienda.ventas;
+      totalT += tienda.tickets;
+      sumaInd += tienda.indicador;
+      const pct = Math.min(tienda.indicador * 100, 100);
+
+      return `
+        <tr>
+          <td>#${index + 1}</td>
+          <td style="font-weight:600">${tienda.name}</td>
+          <td>${tienda.ventas.toLocaleString()}€</td>
+          <td>${tienda.tickets}</td>
+          <td style="color:var(--gold); font-weight:bold">${(tienda.indicador * 100).toFixed(2)}%</td>
+          <td>
+            <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    document.getElementById('totalVentas').innerText = totalV.toLocaleString() + '€';
+    document.getElementById('totalTickets').innerText = totalT.toLocaleString();
+    document.getElementById('mediaIndicador').innerText = (sumaInd / currentRankings.length * 100).toFixed(2) + '%';
+  }
+</script>
+</body>
+</html>
