@@ -91,7 +91,7 @@
 
 <script>
   // 1. COLOCA TU URL DE GOOGLE SHEETS AQUÍ (Publicado como CSV)
-  const CSV_URL = 'TU_URL_DE_GOOGLE_SHEETS_AQUI';
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSGjOja6tEOQ7pMgNbnGiPVpyFzs-fwwMyw3Yw6HMTPTZWEAAktypqNCp8VSWefog/pub?output=csv';
 
   let rawData = [];
   let currentView = 'diario';
