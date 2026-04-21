@@ -3,46 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Manolo Bakes — Dashboard Automático</title>
+<title>Manolo Bakes — La Caja Challenge</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* Se mantienen todos tus estilos CSS originales del archivo dashboard_manolo.html */
+  /* Mantenemos tus variables de color exactas */
   :root {
     --green-dark: #1a2e1e;
     --green-mb: #2d4a32;
     --green-mid: #3d6b45;
     --green-light: #5a8f64;
     --cream: #f5f0e8;
-    --cream-dark: #e8e0d0;
     --gold: #c9a84c;
-    --gold-light: #e8c97a;
     --white: #ffffff;
-    --text-light: rgba(245,240,232,0.7);
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--green-dark); color: var(--cream); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem 1rem; }
-  .container { max-width: 1000px; margin: 0 auto; }
-  header { text-align: center; margin-bottom: 3rem; border-bottom: 1px solid rgba(201,168,76,0.2); padding-bottom: 2rem; }
-  h1 { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 900; letter-spacing: -1px; color: var(--gold); margin-bottom: 0.5rem; }
-  .subtitle { font-family: 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 4px; font-size: 0.8rem; color: var(--text-light); }
-  
-  /* Estilos para el panel de carga automático */
-  #status-msg { text-align: center; margin-bottom: 1rem; font-style: italic; color: var(--gold-light); }
-  #manual-upload-trigger { 
-    display: block; margin: 0 auto 2rem auto; background: transparent; border: 1px solid var(--green-mid); 
-    color: var(--text-light); padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.7rem;
+
+  body { 
+    background: var(--green-dark); 
+    color: var(--cream); 
+    font-family: 'DM Sans', sans-serif; 
+    padding: 2rem;
   }
-  #uploadPanel { display: none; background: rgba(255,255,255,0.05); padding: 2rem; border-radius: 15px; text-align: center; margin-bottom: 2rem; border: 1px dashed var(--gold); }
+
+  /* Estilos del header y buscador */
+  header { text-align: center; margin-bottom: 2rem; }
+  h1 { font-family: 'Playfair Display', serif; color: var(--gold); font-size: 3rem; }
   
-  /* Se mantienen tus estilos de tablas y tarjetas... */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
-  .stat-card { background: var(--green-mb); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-  .table-container { background: var(--green-mb); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-  table { width: 100%; border-collapse: collapse; }
-  th { background: rgba(0,0,0,0.2); padding: 1.2rem 1rem; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); }
-  td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
-  .bar-fill { height: 6px; background: var(--gold); border-radius: 3px; }
-  .bar-bg { width: 100%; background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; }
+  .controls { 
+    display: flex; justify-content: space-between; align-items: center; 
+    margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;
+  }
+
+  input[type="text"] {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--green-mid);
+    color: white; padding: 0.8rem 1.5rem; border-radius: 30px; width: 300px;
+  }
+
+  .vt-btn {
+    background: var(--green-mb); border: 1px solid var(--gold); color: var(--gold);
+    padding: 0.5rem 1.5rem; cursor: pointer; border-radius: 20px; transition: 0.3s;
+  }
+
+  .vt-btn.active { background: var(--gold); color: var(--green-dark); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--green-mb); border-radius: 15px; overflow: hidden; }
+  th { background: rgba(0,0,0,0.2); color: var(--gold); padding: 1rem; text-align: left; cursor: pointer; }
+  td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+  .bar-bg { width: 100%; background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; }
+  .bar-fill { background: var(--gold); height: 100%; border-radius: 4px; transition: width 1s ease-in-out; }
+
+  #loading-status { text-align: center; color: var(--gold); margin-bottom: 1rem; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -50,137 +61,115 @@
 <div class="container">
   <header>
     <h1>MANOLO BAKES</h1>
-    <div class="subtitle">La Caja Challenge — Ranking en Tiempo Real</div>
+    <p>RANKING LA CAJA CHALLENGE</p>
   </header>
 
-  <div id="status-msg">Cargando datos en tiempo real...</div>
-  
-  <button id="manual-upload-trigger" onclick="document.getElementById('uploadPanel').style.display='block'">Subir archivo manualmente</button>
+  <div id="loading-status">Conectando con base de datos Excel...</div>
 
-  <div id="uploadPanel">
-    <p style="margin-bottom:1rem">Selecciona el archivo Excel si la carga automática falla:</p>
-    <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
-  </div>
-
-  <div class="stats-grid" id="statsGrid" style="display:none">
-    <div class="stat-card">
-      <div class="label">Total Ventas</div>
-      <div class="value" id="totalVentas">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="label">Total Tickets</div>
-      <div class="value" id="totalTickets">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="label">Media Indicador</div>
-      <div class="value" id="mediaIndicador">0%</div>
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Buscar tienda..." oninput="filterData()">
+    <div>
+      <button id="btnDiario" class="vt-btn active" onclick="setView('diario')">DIARIO</button>
+      <button id="btnAcum" class="vt-btn" onclick="setView('acumulado')">ACUMULADO</button>
     </div>
   </div>
 
-  <div class="table-container" id="mainContent" style="display:none">
-    <table id="rankingTable">
-      <thead>
-        <tr>
-          <th>Puesto</th>
-          <th>Tienda</th>
-          <th>Ventas</th>
-          <th>Tickets</th>
-          <th>Indicador</th>
-          <th style="width: 30%">Progreso</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Ranking</th>
+        <th>Tienda</th>
+        <th id="labelVentas">Ventas</th>
+        <th id="labelTickets">Tickets</th>
+        <th>Indicador</th>
+        <th>Progreso</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-  // CONFIGURACIÓN: PEGA AQUÍ TU URL DE GOOGLE SHEETS (PUBLICA COMO CSV)
-  const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSGjOja6tEOQ7pMgNbnGiPVpyFzs-fwwMyw3Yw6HMTPTZWEAAktypqNCp8VSWefog/pub?output=csv';
+  // 1. COLOCA TU URL DE GOOGLE SHEETS AQUÍ (Publicado como CSV)
+  const CSV_URL = 'TU_URL_DE_GOOGLE_SHEETS_AQUI';
 
-  let currentRankings = [];
+  let rawData = [];
+  let currentView = 'diario';
 
-  // Al cargar la página, intenta traer los datos automáticamente
+  // Carga automática al abrir
   window.addEventListener('DOMContentLoaded', () => {
-    if (SHEET_CSV_URL && SHEET_CSV_URL !== 'TU_URL_DE_GOOGLE_SHEETS_AQUI') {
-      fetchData();
+    if(CSV_URL.includes('TU_URL')) {
+        document.getElementById('loading-status').innerText = "⚠️ Error: Falta la URL del Excel";
     } else {
-      document.getElementById('status-msg').innerText = "Configura la URL de Google Sheets en el código.";
-      document.getElementById('uploadPanel').style.display = 'block';
+        fetchData();
     }
-  });
-
-  // Escuchador para subida manual por si acaso
-  document.getElementById('fileInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = evt.target.result;
-      processWorkbook(XLSX.read(data, { type: 'binary' }));
-    };
-    reader.readAsBinaryString(file);
   });
 
   async function fetchData() {
     try {
-      const response = await fetch(SHEET_CSV_URL);
-      const csvText = await response.text();
-      const workbook = XLSX.read(csvText, { type: 'string' });
-      processWorkbook(workbook);
-      document.getElementById('status-msg').innerText = "Datos actualizados automáticamente";
+      const response = await fetch(CSV_URL);
+      const data = await response.text();
+      const workbook = XLSX.read(data, { type: 'string' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      rawData = XLSX.utils.sheet_to_json(sheet);
+      
+      document.getElementById('loading-status').style.display = 'none';
+      renderTable();
     } catch (e) {
-      console.error(e);
-      document.getElementById('status-msg').innerText = "Error en carga automática. Usa la subida manual.";
-      document.getElementById('uploadPanel').style.display = 'block';
+      document.getElementById('loading-status').innerText = "❌ Error al cargar datos";
     }
   }
 
-  function processWorkbook(workbook) {
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rawData = XLSX.utils.sheet_to_json(sheet);
-    
-    // Aquí usamos tu lógica original de procesamiento
-    currentRankings = rawData.map(row => ({
-      name: row.Tienda || row.Nombre || "Tienda",
-      ventas: parseFloat(row.Ventas || 0),
-      tickets: parseInt(row.Tickets || 0),
-      indicador: parseFloat(row.Indicador || 0)
-    })).sort((a, b) => b.indicador - a.indicador);
-
-    renderDashboard();
+  function setView(view) {
+    currentView = view;
+    document.getElementById('btnDiario').classList.toggle('active', view === 'diario');
+    document.getElementById('btnAcum').classList.toggle('active', view === 'acumulado');
+    document.getElementById('labelVentas').innerText = view === 'diario' ? 'Ventas' : 'Ventas Acum.';
+    document.getElementById('labelTickets').innerText = view === 'diario' ? 'Tickets' : 'Tickets Acum.';
+    renderTable();
   }
 
-  function renderDashboard() {
-    document.getElementById('statsGrid').style.display = 'grid';
-    document.getElementById('mainContent').style.display = 'block';
-    
+  function renderTable(filterText = '') {
     const tbody = document.getElementById('tableBody');
-    let totalV = 0, totalT = 0, sumaInd = 0;
+    
+    // Procesar datos según la vista
+    let processed = rawData.map(row => {
+        return {
+            name: row.Tienda || row.Nombre,
+            ventas: currentView === 'diario' ? parseFloat(row.Ventas || 0) : parseFloat(row['Ventas Acum'] || 0),
+            tickets: currentView === 'diario' ? parseInt(row.Tickets || 0) : parseInt(row['Tickets Acum'] || 0),
+            indicador: currentView === 'diario' ? parseFloat(row.Indicador || 0) : parseFloat(row['Indicador Acum'] || 0)
+        };
+    });
 
-    tbody.innerHTML = currentRankings.map((tienda, index) => {
-      totalV += tienda.ventas;
-      totalT += tienda.tickets;
-      sumaInd += tienda.indicador;
-      const pct = Math.min(tienda.indicador * 100, 100);
+    // Ordenar por indicador
+    processed.sort((a, b) => b.indicador - a.indicador);
 
-      return `
-        <tr>
-          <td>#${index + 1}</td>
-          <td style="font-weight:600">${tienda.name}</td>
-          <td>${tienda.ventas.toLocaleString()}€</td>
-          <td>${tienda.tickets}</td>
-          <td style="color:var(--gold); font-weight:bold">${(tienda.indicador * 100).toFixed(2)}%</td>
-          <td>
-            <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
-          </td>
-        </tr>
-      `;
+    // Filtrar por texto
+    if(filterText) {
+        processed = processed.filter(p => p.name.toLowerCase().includes(filterText.toLowerCase()));
+    }
+
+    tbody.innerHTML = processed.map((item, index) => {
+        const pct = Math.min(item.indicador * 100, 100);
+        return `
+            <tr>
+                <td>#${index + 1}</td>
+                <td><strong>${item.name}</strong></td>
+                <td>${item.ventas.toLocaleString()}€</td>
+                <td>${item.tickets}</td>
+                <td style="color:var(--gold)">${(item.indicador * 100).toFixed(2)}%</td>
+                <td>
+                    <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+                </td>
+            </tr>
+        `;
     }).join('');
+  }
 
-    document.getElementById('totalVentas').innerText = totalV.toLocaleString() + '€';
-    document.getElementById('totalTickets').innerText = totalT.toLocaleString();
-    document.getElementById('mediaIndicador').innerText = (sumaInd / currentRankings.length * 100).toFixed(2) + '%';
+  function filterData() {
+    const text = document.getElementById('searchInput').value;
+    renderTable(text);
   }
 </script>
 </body>
